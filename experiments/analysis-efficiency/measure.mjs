@@ -13,6 +13,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { PACKET_ARTIFACTS, measurePacketEntry } from "./packet-entry.mjs";
+import { SIGNAL_ARTIFACTS, measureSignalEntry } from "./signal-entry.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const { values } = parseArgs({
@@ -31,6 +32,7 @@ const { values } = parseArgs({
     schemas: { type: "string", default: "default" },
     "sqlite-selection": { type: "string", default: "all" },
     "packet-selection": { type: "string", default: "baseline" },
+    "signal-selection": { type: "string", default: "baseline" },
   },
 });
 if (
@@ -41,6 +43,13 @@ if (
   !isAbsolute(values.path) ||
   !isAbsolute(values.output) ||
   !["complete", "summary"].includes(values.delivery) ||
+  !["baseline", "focused", "discovery", "pages"].includes(
+    values["signal-selection"],
+  ) ||
+  (!Object.hasOwn(SIGNAL_ARTIFACTS, values.artifact) &&
+    values["signal-selection"] !== "baseline") ||
+  (Object.hasOwn(SIGNAL_ARTIFACTS, values.artifact) &&
+    values.delivery !== "complete") ||
   !["entry", "entry-and-main", "entry-views"].includes(
     values["native-question"],
   ) ||
@@ -158,6 +167,12 @@ const fingerprints = {
   ),
   packet_oracle_source_sha256: await fileSha(
     fileURLToPath(new URL("./packet-oracle.py", import.meta.url)),
+  ),
+  signal_workflow_source_sha256: await fileSha(
+    fileURLToPath(new URL("./signal-entry.mjs", import.meta.url)),
+  ),
+  signal_oracle_source_sha256: await fileSha(
+    fileURLToPath(new URL("./signal-oracle.py", import.meta.url)),
   ),
   runtime_files_sha256: sha(JSON.stringify(runtimeFiles)),
   runtime_dispatcher_sha256: await fileSha(
@@ -740,6 +755,12 @@ const inspectPcapTarget = async () => {
 
 const workflows = {
   ...Object.fromEntries(
+    Object.keys(SIGNAL_ARTIFACTS).map((artifact) => [
+      artifact,
+      () => measureSignalEntry({ values, call, inputSha, catalogDefinitions }),
+    ]),
+  ),
+  ...Object.fromEntries(
     Object.keys(PACKET_ARTIFACTS).map((artifact) => [
       artifact,
       () => measurePacketEntry({ values, call, inputSha, catalogDefinitions }),
@@ -1185,6 +1206,9 @@ const report = {
       : null,
   packet_selection: Object.hasOwn(PACKET_ARTIFACTS, values.artifact)
     ? values["packet-selection"]
+    : null,
+  signal_selection: Object.hasOwn(SIGNAL_ARTIFACTS, values.artifact)
+    ? values["signal-selection"]
     : null,
   provider_settings_sha256: sha(JSON.stringify(selectedProviders)),
   provider_search_path_sha256: sha(

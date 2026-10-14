@@ -31,6 +31,7 @@ type Fixture = {
     provider_search_path_sha256: string;
     calls: unknown[];
     packet_selection?: string;
+    signal_selection?: string;
   };
   answer: {
     capture: { coverage: string; capture_start: null };
@@ -38,8 +39,9 @@ type Fixture = {
     delivery_observations: Observation[];
     facts?: {
       kind: string;
-      matching_packets: number;
-      rows: { frame: number }[];
+      matching_packets?: number;
+      rows?: { frame: number }[];
+      bytes?: number[];
     };
   };
 };
@@ -154,10 +156,34 @@ for (const artifact of [
       equivalent.report.preserved_run_specific_values.map((row) => row.value),
       [left.answer.delivery_observations, right.answer.delivery_observations],
     );
-    right.answer.facts!.matching_packets++;
+    right.answer.facts!.matching_packets = 1338;
     assert.equal(compare(left, right).report.facts_match, false);
-    right.answer.facts!.matching_packets--;
+    right.answer.facts!.matching_packets = 1337;
     right.summary.packet_selection = "baseline";
+    assert.equal(compare(left, right).report.facts_match, false);
+  });
+}
+
+for (const artifact of ["sigrok-uart-max3232e.sr", "sigrok-i2c-nunchuk.sr"]) {
+  test(`${artifact}: compare decoded facts across signal plans and preserve display scope`, () => {
+    const left = fixture("complete", artifact);
+    left.summary.signal_selection = "baseline";
+    left.answer.facts = { kind: "signal", bytes: [72, 101] };
+    const right = structuredClone(left);
+    right.summary.signal_selection = "focused";
+    right.answer.delivery_observations[0]!.coverage =
+      "selected annotation lines";
+    const equivalent = compare(left, right);
+    assert.equal(equivalent.status, 0);
+    assert.equal(equivalent.report.facts_match, true);
+    assert.deepEqual(
+      equivalent.report.preserved_run_specific_values.map((row) => row.value),
+      [left.answer.delivery_observations, right.answer.delivery_observations],
+    );
+    right.answer.facts!.bytes![0] = 73;
+    assert.equal(compare(left, right).report.facts_match, false);
+    right.answer.facts!.bytes![0] = 72;
+    right.summary.signal_selection = "baseline";
     assert.equal(compare(left, right).report.facts_match, false);
   });
 }
