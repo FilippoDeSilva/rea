@@ -343,6 +343,36 @@
         "derivation": "Unmodified official saved sample; decompressed gzip where indicated. Local digest pins acquired bytes, not an upstream-published digest.",
         "compressed_source": null
       }
+    },
+    {
+      "id": "sigrok-uart-max3232e.sr",
+      "file": "uart-max3232e.sr",
+      "bytes": 12742,
+      "sha256": "f797d60d6b8e12d2a1549b9a5a499ef389f44cb9e870e8610af26b57c3b2be76",
+      "provenance": {
+        "project": "sigrok-dumps",
+        "version": "0ad13477abc959d37fc9a5acbd23901c371c9c76",
+        "upstreamFile": "uart/maxim_max3232e/max3232e_hello_world_57600_8n1.sr",
+        "url": "https://raw.githubusercontent.com/sigrokproject/sigrok-dumps/0ad13477abc959d37fc9a5acbd23901c371c9c76/uart/maxim_max3232e/max3232e_hello_world_57600_8n1.sr",
+        "git_blob_sha1": "52e47b3014819471a2f348a0d8c7694fe304e052",
+        "reference": "https://raw.githubusercontent.com/sigrokproject/sigrok-dumps/0ad13477abc959d37fc9a5acbd23901c371c9c76/uart/maxim_max3232e/README",
+        "license_scope": "Repository README declares dumps public domain unless otherwise noted; selected READMEs state no exception; decoder software licensing is separate."
+      }
+    },
+    {
+      "id": "sigrok-i2c-nunchuk.sr",
+      "file": "i2c-nunchuk.sr",
+      "bytes": 20373,
+      "sha256": "0fa6adb8297d7f3fe5ba19c94ee655c9b0f952a8b5e48a17aaa499a2f6d10d70",
+      "provenance": {
+        "project": "sigrok-dumps",
+        "version": "0ad13477abc959d37fc9a5acbd23901c371c9c76",
+        "upstreamFile": "i2c/wii_nunchuk/wii_nunchuk_init_reg_3xdata.sr",
+        "url": "https://raw.githubusercontent.com/sigrokproject/sigrok-dumps/0ad13477abc959d37fc9a5acbd23901c371c9c76/i2c/wii_nunchuk/wii_nunchuk_init_reg_3xdata.sr",
+        "git_blob_sha1": "a7232fce7b54e68e2be44e15946c90a3c756e8e9",
+        "reference": "https://raw.githubusercontent.com/sigrokproject/sigrok-dumps/0ad13477abc959d37fc9a5acbd23901c371c9c76/i2c/wii_nunchuk/README",
+        "license_scope": "Repository README declares dumps public domain unless otherwise noted; selected READMEs state no exception; decoder software licensing is separate."
+      }
     }
   ]
 }
