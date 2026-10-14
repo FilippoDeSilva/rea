@@ -8,6 +8,7 @@ import {
   signalDataRows,
   signalFacts,
   verifySignalRows,
+  verifySignalOracleIdentity,
 } from "./signal-entry.mjs";
 
 const { values } = parseArgs({
@@ -62,6 +63,7 @@ const reasons = [],
   authenticated = new Map(),
   conflicting = new Set();
 try {
+  verifySignalOracleIdentity(values.artifact, oracle);
   if (oracle.kind !== kind)
     throw new Error("Wrong independent signal question oracle");
   if (calls.length !== 1 || calls[0]?.tool !== "decode_signal_recording")

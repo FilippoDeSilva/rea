@@ -4,6 +4,7 @@ import argparse
 from bisect import bisect_right
 import configparser
 import hashlib
+import io
 import json
 from pathlib import Path
 import re
@@ -16,21 +17,44 @@ def read_edges(path, channels):
     if size > 32 * 1024 * 1024:
         raise ValueError('Compressed SR input exceeds the experiment budget')
     with path.open('rb') as source:
-        source.seek(max(0, size - 65557))
-        tail = source.read(65557)
-    marker = tail.rfind(b'PK\x05\x06')
-    if marker < 0 or len(tail) - marker < 22:
-        raise ValueError('Missing classic ZIP directory receipt')
-    header = struct.unpack_from('<4s4H2IH', tail, marker)
-    if header[1] or header[2] or header[3] != header[4] or not 1 <= header[4] <= 64 or header[5] > 65536 or marker + 22 + header[7] != len(tail):
-        raise ValueError('Unsupported or excessive ZIP directory representation')
-    with path.open('rb') as source:
         admitted = source.read(32 * 1024 * 1024 + 1)
     if len(admitted) > 32 * 1024 * 1024:
         raise ValueError('SR input grew beyond the experiment budget')
+    marker = admitted.rfind(b'PK\x05\x06', max(0, len(admitted) - 65557))
+    if marker < 0 or len(admitted) - marker < 22:
+        raise ValueError('Missing classic ZIP directory receipt')
+    header = struct.unpack_from('<4s4H2IH', admitted, marker)
+    if (marker >= 20 and admitted[marker-20:marker-16] == b'PK\x06\x07'):
+        raise ValueError('ZIP64 directory is unsupported')
+    if header[1] or header[2] or header[3] != header[4] or not 1 <= header[4] <= 64 or header[5] > 65536 or marker + 22 + header[7] != len(admitted) or header[6] + header[5] != marker:
+        raise ValueError('Unsupported or excessive ZIP directory representation')
+    directory = memoryview(admitted)[header[6]:marker]
+    position = count = 0
+    while position < len(directory):
+        if count >= 64 or len(directory) - position < 46 or directory[position:position+4] != b'PK\x01\x02':
+            raise ValueError('Unsupported or excessive actual ZIP directory records')
+        name_size, extra_size, comment_size = struct.unpack_from('<3H', directory, position + 28)
+        end = position + 46 + name_size + extra_size + comment_size
+        if end > len(directory):
+            raise ValueError('Incomplete actual ZIP directory record')
+        extra = position + 46 + name_size
+        extra_end = extra + extra_size
+        while extra < extra_end:
+            if extra_end - extra < 4:
+                raise ValueError('Incomplete ZIP extra field')
+            tag, length = struct.unpack_from('<2H', directory, extra)
+            if tag == 1:
+                raise ValueError('ZIP64 member is unsupported')
+            extra += 4 + length
+            if extra > extra_end:
+                raise ValueError('Incomplete ZIP extra field')
+        count += 1
+        position = end
+    if count != header[4]:
+        raise ValueError('Declared and actual ZIP directory counts differ')
     before = hashlib.sha256(admitted).hexdigest()
-    del admitted
-    with zipfile.ZipFile(path) as archive:
+    # Admission and ZipFile parse the same bounded snapshot, not a reopened path.
+    with zipfile.ZipFile(io.BytesIO(admitted), allowZip64=False) as archive:
         entries = archive.infolist()
         names = [item.filename for item in entries]
         if len(names) != len(set(names)) or len(names) > 64:

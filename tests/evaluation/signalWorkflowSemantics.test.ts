@@ -9,7 +9,7 @@ test("signal verification rejects skipped identical UART bytes and reordered I2C
   ).href;
   const source = `
     import assert from 'node:assert/strict';
-    import {verifySignalRows,signalDataRows} from ${JSON.stringify(moduleUrl)};
+    import {verifySignalRows,signalDataRows,verifySignalOracleIdentity} from ${JSON.stringify(moduleUrl)};
     const sha256='a'.repeat(64);
     const rows=Array.from({length:8},(_,i)=>({start:i*100+10,end:i*100+80,byte:72}));
     const uart={kind:'uart',sha256,total_samples:2000,rows:rows.map((_,i)=>({start:i*100,end_exclusive:i*100+90,byte:72}))};
@@ -19,10 +19,16 @@ test("signal verification rejects skipped identical UART bytes and reordered I2C
     assert.throws(()=>verifySignalRows('uart',rows,uart,'b'.repeat(64)),/identity/);
     const data=Array.from({length:18},(_,i)=>({start:i*100+10,end:i*100+90,byte:117}));
     const raw=data.map((_,i)=>({byte:117,first_clock:i*100+20,last_clock:i*100+80}));
-    const i2c={kind:'i2c',sha256,total_samples:2000,reads:[{bytes:[{byte:165},...raw]}]};
+    const i2c={kind:'i2c',sha256,total_samples:2000,reads:[{bytes:[{byte:165,last_clock:0},...raw],stop:1900}]};
     verifySignalRows('i2c',data,i2c,sha256);
     assert.throws(()=>verifySignalRows('i2c',data.toReversed(),i2c,sha256),/interval/);
     assert.throws(()=>verifySignalRows('i2c',[{...data[0],byte:118},...data.slice(1)],i2c,sha256),/sample bits/);
+    assert.throws(()=>verifySignalRows('i2c',data.map((row,i)=>({...row,start:i,end:1999})),i2c,sha256),/interval/);
+    assert.throws(()=>verifySignalRows('i2c',[{...data[0],start:0},...data.slice(1)],i2c,sha256),/interval/);
+    assert.throws(()=>verifySignalRows('i2c',[...data.slice(0,-1),{...data.at(-1),end:1900}],i2c,sha256),/interval/);
+    verifySignalOracleIdentity('sigrok-uart-max3232e.sr',{kind:'uart',sha256:'f797d60d6b8e12d2a1549b9a5a499ef389f44cb9e870e8610af26b57c3b2be76'});
+    assert.throws(()=>verifySignalOracleIdentity('sigrok-uart-max3232e.sr',uart),/pinned signal corpus/);
+    assert.throws(()=>verifySignalOracleIdentity('sigrok-i2c-nunchuk.sr',{kind:'uart',sha256:'0fa6adb8297d7f3fe5ba19c94ee655c9b0f952a8b5e48a17aaa499a2f6d10d70'}),/pinned signal corpus/);
     assert.throws(()=>signalDataRows('uart','9007199254740993-9007199254740994 uart-1: 48'),/sample interval/);
   `;
   // Checker semantics only; synthesized rows do not establish provider behavior.

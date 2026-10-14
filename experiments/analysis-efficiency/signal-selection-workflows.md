@@ -137,13 +137,21 @@ were cleaned. Terminal whole-scope counters are unavailable and remain unknown.
 
 ## Verification and replay
 
-Eight independent-oracle regressions and 12 comparator/sample-interval tests pass.
+Ten independent-oracle regressions and 12 comparator/sample-interval tests pass.
 Twenty-four private replays using actual SDK Evidence cover valid answers, failed
 calls before/after recovery, wrong bytes, unknown citations and missing limitations.
 These are grading checks with injected state, not additional model/provider trials.
 The grader retains authenticated observations by identity, rejects conflicts,
 combines cited pages in sample order and keeps failed calls/plan deviations separate
 from supported facts. Relevant typecheck/lint and pre-push checks pass.
+
+Review hardening ties the oracle to the named corpus digest, bounds each I2C
+interval against neighboring byte clocks/transaction STOP, and counts actual
+classic-ZIP directory records on the same bounded snapshot before allocating
+`ZipFile` objects; ZIP64 is rejected. Forged-count and ZIP64 admission regressions
+fail on the original implementation. Replaying all eight original model trials
+and 24 injected grading cases with these checks preserves their factual/plan
+grades and recorded usage/time; these replays are not new model measurements.
 
 After rebasing onto main `44d98de2367b99808d78db732ec7d72533266233`,
 `npm run build:cached` and the 16 focused comparator/sample-interval/MCP-boundary

@@ -1,7 +1,12 @@
 import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isDeepStrictEqual, promisify } from "node:util";
+
+const corpus = JSON.parse(
+  await readFile(new URL("./corpus.json", import.meta.url), "utf8"),
+);
 
 export const SIGNAL_ARTIFACTS = {
   "sigrok-uart-max3232e.sr": {
@@ -69,11 +74,29 @@ export function signalFacts(kind, rows) {
   };
 }
 
+export function verifySignalOracleIdentity(artifact, oracle) {
+  const pinned = corpus.artifacts.find((entry) => entry.id === artifact);
+  if (
+    !pinned ||
+    oracle.kind !== SIGNAL_ARTIFACTS[artifact]?.kind ||
+    oracle.sha256 !== pinned.sha256
+  )
+    throw new Error(
+      "Independent oracle does not identify the pinned signal corpus",
+    );
+}
+
 export function verifySignalRows(kind, rows, oracle, digest) {
   const expected =
     kind === "uart"
       ? oracle.rows
-      : oracle.reads.flatMap((read) => read.bytes.slice(1));
+      : oracle.reads.flatMap((read) =>
+          read.bytes.slice(1).map((byte, index) => ({
+            ...byte,
+            after_previous: read.bytes[index].last_clock,
+            before_next: read.bytes[index + 2]?.first_clock ?? read.stop,
+          })),
+        );
   if (
     oracle.kind !== kind ||
     oracle.sha256 !== digest ||
@@ -94,7 +117,12 @@ export function verifySignalRows(kind, rows, oracle, digest) {
     if (
       kind === "uart"
         ? observed.start < raw.start || observed.end >= raw.end_exclusive
-        : observed.start > raw.first_clock || observed.end < raw.last_clock
+        : !Number.isSafeInteger(raw.after_previous) ||
+          !Number.isSafeInteger(raw.before_next) ||
+          observed.start <= raw.after_previous ||
+          observed.end >= raw.before_next ||
+          observed.start > raw.first_clock ||
+          observed.end < raw.last_clock
     )
       throw new Error(
         "Decoded interval does not identify the independently read byte",
@@ -220,6 +248,7 @@ export async function measureSignalEntry({
     { timeout: 30_000, maxBuffer: 256 * 1024 },
   );
   const oracle = JSON.parse(stdout);
+  verifySignalOracleIdentity(values.artifact, oracle);
   verifySignalRows(descriptor.kind, rows, oracle, inputSha);
   return {
     artifact_sha256: inputSha,

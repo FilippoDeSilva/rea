@@ -96,6 +96,31 @@ class SignalOracleTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Expanded SR input'):
             oracle.read_edges(self.path, ['SCL', 'SDA'])
 
+    def test_forged_member_count_cannot_allocate_extra_zip_objects(self):
+        self.recording(b'\x00', 1, ['SCL', 'SDA'], extra=62)
+        data = bytearray(self.path.read_bytes())
+        end = data.rfind(b'PK\x05\x06')
+        struct.pack_into('<2H', data, end + 8, 1, 1)
+        self.path.write_bytes(data)
+        with patch.object(oracle.zipfile, 'ZipFile', side_effect=AssertionError('Too late')):
+            with self.assertRaisesRegex(ValueError, 'actual ZIP directory'):
+                oracle.read_edges(self.path, ['SCL', 'SDA'])
+
+    def test_zip64_locator_cannot_override_the_classic_budget(self):
+        self.recording(b'\x00', 1, ['SCL', 'SDA'])
+        data = bytearray(self.path.read_bytes())
+        end = data.rfind(b'PK\x05\x06')
+        # Syntactically complete ZIP64 directory/locator before a classic EOCD.
+        header = struct.unpack_from('<4s4H2IH', data, end)
+        record = struct.pack('<4sQ2H2I4Q', b'PK\x06\x06', 44, 45, 45, 0, 0,
+                             header[4], header[4], 100000000, header[6])
+        locator = struct.pack('<4sIQI', b'PK\x06\x07', 0, end, 1)
+        data[end:end] = record + locator
+        self.path.write_bytes(data)
+        with patch.object(oracle.zipfile, 'ZipFile', side_effect=AssertionError('Too late')):
+            with self.assertRaisesRegex(ValueError, 'ZIP64 directory'):
+                oracle.read_edges(self.path, ['SCL', 'SDA'])
+
 
 if __name__ == '__main__':
     unittest.main()
