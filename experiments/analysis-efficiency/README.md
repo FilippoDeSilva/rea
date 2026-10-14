@@ -78,6 +78,12 @@ field/filter selection, discovery and output windows. Lower delivered JSON did
 not establish stable total-token or speed gains; failed plans and negative
 controls remain visible.
 
+The [sigrok selection checkpoint](signal-selection-workflows.md) records two
+real hardware recordings, independently verified bytes, repeated decoder/pages,
+and an eight-task Codex cohort with mixed token/time results. Existing annotation
+controls reduce replies; these measurements introduce no production cache,
+default or API changes.
+
 Agent token consumption and end-to-end task time are the primary objectives.
 Memory and CPU consumption are also measured and controlled. Correctness,
 Evidence provenance, caller choices and existing-user compatibility are
